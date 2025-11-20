@@ -30,6 +30,18 @@ const SidebarLayout = ({ children }) => {
           >
             Tareas globales
           </NavLink>
+
+          {/* ⭐ NUEVO: Botón Mi perfil */}
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              `block px-2 py-1 rounded ${
+                isActive ? "bg-gray-700 font-semibold" : "hover:bg-gray-700"
+              }`
+            }
+          >
+            Mi perfil
+          </NavLink>
         </nav>
       </aside>
 
