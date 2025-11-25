@@ -10,7 +10,7 @@ import TaskList from "../components/TaskList";
 import ProgressBar from "../components/ProgressBar";
 import EditTaskModal from "../components/EditTaskModal";
 
-const Dashboard = ({ onLogout }) => {
+const Dashboard = () => {
   // -------- ESTADOS --------
   const [tasks, setTasks] = useState([]);
   const [search, setSearch] = useState("");
@@ -139,54 +139,65 @@ const Dashboard = ({ onLogout }) => {
   // -------- FILTROS --------
 
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch = task.title
-      .toLowerCase()
-      .includes(search.toLowerCase());
+
+    // Protección total: si no existe título, usar ""
+    const title = (task?.title || "").toLowerCase();
+
+    const matchesSearch = title.includes(search.toLowerCase());
 
     const matchesPriority =
-      filterPriority === "Todas" || task.priority === filterPriority;
+      filterPriority === "Todas" ||
+      (task.priority && task.priority === filterPriority);
 
     return matchesSearch && matchesPriority;
   });
 
+
   // -------- UI --------
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-lg">
-        
-        {/* ---------- CABECERA ---------- */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Mis tareas</h1>
-          <button
-            onClick={onLogout}
-            className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded transition"
-          >
-            Cerrar sesión
-          </button>
-        </div>
+    <div className="min-h-screen p-8 text-gray-100 bg-[#0D0F18]">
+
+      {/* ---------- CABECERA ---------- */}
+      <div className="max-w-6xl mx-auto mb-10">
+        <h1 className="text-4xl font-extrabold text-cyan-400 tracking-wide">
+          Mis tareas
+        </h1>
+        <p className="text-gray-500 mt-1">
+          Organiza tu día con claridad y foco.
+        </p>
+      </div>
+
+      {/* ---------- CONTENIDO PRINCIPAL ---------- */}
+      <div className="max-w-6xl mx-auto bg-white/5 backdrop-blur-xl 
+      border border-white/10 rounded-2xl p-8 shadow-xl">
 
         {/* Formulario */}
         <TaskForm onAdd={handleAddTask} />
 
         {/* Barra de progreso */}
-        <div className="my-4">
+        <div className="my-6">
           <ProgressBar tasks={tasks} />
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <input
             type="text"
-            placeholder="Buscar tarea..."
+            placeholder="🔍 Buscar tarea..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 w-full sm:w-1/2"
+            className="bg-[#1E2233] border border-[#2A2F43] text-gray-100 
+            rounded px-3 py-2 focus:outline-none focus:border-cyan-400 
+            focus:ring-2 focus:ring-cyan-500 w-full sm:w-1/2 transition"
           />
+
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-2 w-full sm:w-1/4"
+            className="bg-[#1E2233] border border-[#2A2F43] text-gray-100 
+            rounded px-3 py-2 focus:outline-none focus:border-cyan-400 
+            focus:ring-2 focus:ring-cyan-500 w-full sm:w-1/4 transition"
           >
             <option value="Todas">Todas</option>
             <option value="Alta">Alta</option>

@@ -49,142 +49,197 @@ function Register({ onRegisterSuccess }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-lg">
-        <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">
-          Crear cuenta
-        </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br 
+    from-[#0D0F18] via-[#131622] to-[#0D0F18] px-4 py-8">
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 
+      rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden 
+      flex flex-col lg:flex-row">
 
-          {/* Nombre */}
-          <div className="flex gap-4">
+        {/* LOGO A LA IZQUIERDA */}
+        <div className="lg:w-1/2 flex flex-col items-center justify-center 
+        p-8 border-b lg:border-b-0 lg:border-r border-white/10">
+
+          <img
+            src="/logobc.png"
+            alt="Block Cloud Logo"
+            className="w-48 h-48 drop-shadow-[0_0_15px_#3B82F6] animate-pulse"
+          />
+
+          <h1 className="text-4xl font-extrabold text-cyan-400 tracking-wide mt-4">
+            BLOCK CLOUD
+          </h1>
+
+          <p className="text-gray-400 text-sm mt-2 text-center px-4">
+            Crea tu cuenta y únete a la plataforma de productividad del futuro.
+          </p>
+        </div>
+
+        {/* FORMULARIO */}
+        <div className="lg:w-1/2 p-8">
+          <h2 className="text-2xl font-bold text-cyan-300 mb-6 text-center">
+            Crear cuenta
+          </h2>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+            {/* Nombre */}
+            <div className="flex gap-4">
+              <input
+                type="text"
+                name="firstName"
+                placeholder="Nombre"
+                value={form.firstName}
+                onChange={handleChange}
+                className="w-1/2 bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+                border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+                focus:ring-cyan-500 transition"
+                required
+              />
+              <input
+                type="text"
+                name="lastName"
+                placeholder="Apellido"
+                value={form.lastName}
+                onChange={handleChange}
+                className="w-1/2 bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+                border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+                focus:ring-cyan-500 transition"
+                required
+              />
+            </div>
+
+            {/* Email */}
             <input
-              type="text"
-              name="firstName"
-              placeholder="Nombre"
-              value={form.firstName}
+              type="email"
+              name="email"
+              placeholder="Correo electrónico"
+              value={form.email}
               onChange={handleChange}
-              className="w-1/2 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400"
+              className="bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+              border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+              focus:ring-cyan-500 transition"
               required
             />
 
+            {/* Password */}
             <input
-              type="text"
-              name="lastName"
-              placeholder="Apellido"
-              value={form.lastName}
+              type="password"
+              name="password"
+              placeholder="Contraseña"
+              value={form.password}
               onChange={handleChange}
-              className="w-1/2 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400"
+              className="bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+              border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+              focus:ring-cyan-500 transition"
               required
             />
-          </div>
 
-          {/* Email */}
-          <input
-            type="email"
-            name="email"
-            placeholder="Correo electrónico"
-            value={form.email}
-            onChange={handleChange}
-            className="border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400"
-            required
-          />
+            {/* Fecha de nacimiento */}
+            <div>
+              <label className="text-gray-400 text-xs ml-1">
+                Fecha de nacimiento
+              </label>
+              <input
+                type="date"
+                name="birthDate"
+                value={form.birthDate}
+                onChange={handleChange}
+                className="bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg w-full 
+                border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+                focus:ring-cyan-500 transition"
+              />
+            </div>
 
-          {/* Contraseña */}
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            value={form.password}
-            onChange={handleChange}
-            className="border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400"
-            required
-          />
-
-          {/* Fecha de nacimiento */}
-          <div>
-            <label className="text-sm text-gray-600">Fecha de nacimiento</label>
+            {/* Teléfono */}
             <input
-              type="date"
-              name="birthDate"
-              value={form.birthDate}
+              type="tel"
+              name="phone"
+              placeholder="Teléfono"
+              value={form.phone}
               onChange={handleChange}
-              className="border px-3 py-2 rounded w-full focus:ring-2 focus:ring-blue-400"
+              className="bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+              border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+              focus:ring-cyan-500 transition"
             />
-          </div>
 
-          {/* Teléfono */}
-          <input
-            type="tel"
-            name="phone"
-            placeholder="Teléfono"
-            value={form.phone}
-            onChange={handleChange}
-            className="border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400"
-          />
+            {/* País / ciudad */}
+            <div className="flex gap-4">
+              <input
+                type="text"
+                name="country"
+                placeholder="País"
+                value={form.country}
+                onChange={handleChange}
+                className="w-1/2 bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+                border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+                focus:ring-cyan-500 transition"
+              />
+              <input
+                type="text"
+                name="city"
+                placeholder="Ciudad"
+                value={form.city}
+                onChange={handleChange}
+                className="w-1/2 bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+                border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+                focus:ring-cyan-500 transition"
+              />
+            </div>
 
-          {/* País / ciudad */}
-          <div className="flex gap-4">
-            <input
-              type="text"
-              name="country"
-              placeholder="País"
-              value={form.country}
-              onChange={handleChange}
-              className="w-1/2 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400"
-            />
+            {/* Profesión */}
             <input
               type="text"
-              name="city"
-              placeholder="Ciudad"
-              value={form.city}
+              name="profession"
+              placeholder="Profesión"
+              value={form.profession}
               onChange={handleChange}
-              className="w-1/2 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400"
+              className="bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+              border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+              focus:ring-cyan-500 transition"
             />
-          </div>
 
-          {/* Profesión */}
-          <input
-            type="text"
-            name="profession"
-            placeholder="Profesión"
-            value={form.profession}
-            onChange={handleChange}
-            className="border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400"
-          />
+            {/* Bio */}
+            <textarea
+              name="bio"
+              placeholder="Biografía (opcional)"
+              value={form.bio}
+              onChange={handleChange}
+              className="bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg h-24 resize-none 
+              border border-[#2A2F43] focus:border-cyan-400 focus:ring-2 
+              focus:ring-cyan-500 transition"
+            />
 
-          {/* Biografía */}
-          <textarea
-            name="bio"
-            placeholder="Biografía (opcional)"
-            value={form.bio}
-            onChange={handleChange}
-            className="border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 h-24 resize-none"
-          />
+            {/* Botón */}
+            <button
+              type="submit"
+              className="w-full py-2 rounded-lg text-white font-semibold 
+              bg-gradient-to-r from-blue-600 to-cyan-500 shadow-lg
+              hover:opacity-90 transition active:scale-95"
+            >
+              Registrarse
+            </button>
+          </form>
 
-          {/* Botón */}
-          <button
-            type="submit"
-            className="bg-blue-600 text-white font-semibold py-2 rounded hover:bg-blue-700 transition"
-          >
-            Registrarse
-          </button>
-        </form>
+          {/* Mensajes */}
+          {msg && (
+            <p className="text-green-400 mt-4 text-center">{msg}</p>
+          )}
+          {error && (
+            <p className="text-red-400 mt-4 text-center">{error}</p>
+          )}
 
-        {msg && <p className="text-green-600 mt-4 text-center">{msg}</p>}
-        {error && <p className="text-red-600 mt-4 text-center">{error}</p>}
-
-        {/* Enlace a login */}
-        <p className="mt-6 text-center text-gray-600">
-          ¿Ya tienes cuenta?{" "}
-          <button
-            onClick={() => navigate("/")}
-            className="text-blue-600 hover:underline font-semibold"
-          >
-            Inicia sesión
-          </button>
-        </p>
+          {/* Enlace a login */}
+          <p className="mt-6 text-center text-gray-400 text-sm">
+            ¿Ya tienes cuenta?
+            <button
+              onClick={() => navigate("/")}
+              className="text-cyan-400 hover:underline font-semibold ml-1"
+            >
+              Inicia sesión
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );

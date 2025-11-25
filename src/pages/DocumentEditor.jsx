@@ -29,20 +29,22 @@ export default function DocumentEditor({ documentId }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [joinError, setJoinError] = useState("");
 
-  // 🧠 Yjs Documento sincronizado
+  // 🧠 Yjs
   const ydoc = useMemo(() => new Y.Doc(), []);
   const yXmlFragment = useMemo(() => ydoc.getXmlFragment("prosemirror"), [ydoc]);
-
   const awareness = useMemo(() => new Awareness(ydoc), [ydoc]);
 
   const localUser = useMemo(() => {
-    const colors = ["#ff0000", "#00aa00", "#0000ff", "#ff00aa", "#ffaa00"];
-    return { name: "Usuario", color: colors[Math.floor(Math.random() * colors.length)] };
+    const colors = ["#4ff", "#0f0", "#f0f", "#0ff", "#ff0"];
+    return {
+      name: "Usuario",
+      color: colors[Math.floor(Math.random() * colors.length)],
+    };
   }, []);
 
   const socketRef = useRef(null);
 
-  // 📝 Editor TipTap
+  // 📝 TipTap editor
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ history: false }),
@@ -61,7 +63,7 @@ export default function DocumentEditor({ documentId }) {
     },
   });
 
-  // 1️⃣ Socket
+  // 🔌 Socket.io conexión
   useEffect(() => {
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL, {
@@ -76,7 +78,7 @@ export default function DocumentEditor({ documentId }) {
     }
   }, []);
 
-  // 2️⃣ Cargar metadata
+  // 📄 cargar metadatos del documento
   useEffect(() => {
     const load = async () => {
       const token = localStorage.getItem("token");
@@ -87,16 +89,17 @@ export default function DocumentEditor({ documentId }) {
       setTitle(data.title);
       setDocData(data);
     };
+
     load();
   }, [documentId]);
 
-  // 3️⃣ Awareness local
+  // 👥 Awareness local
   useEffect(() => {
     awareness.setLocalState({ user: localUser, cursor: null });
     return () => awareness.setLocalState(null);
   }, []);
 
-  // 4️⃣ Sincronización Yjs ↔ Socket
+  // 🔄 Sincronización Yjs ↔ Socket.io
   useEffect(() => {
     if (!socketRef.current || !editor) return;
 
@@ -111,32 +114,36 @@ export default function DocumentEditor({ documentId }) {
     socket.on("document-state", applyRemote);
     socket.on("sync-update", applyRemote);
 
-    socket.on("awareness-update", (update) =>
+    socket.on("awareness-update", (update) => {
       awarenessProtocol.applyAwarenessUpdate(
         awareness,
         Uint8Array.from(update),
         "socket"
-      )
-    );
+      );
+    });
 
     ydoc.on("update", (u, origin) => {
-      if (origin !== "socket")
+      if (origin !== "socket") {
         socket.emit("sync-update", Array.from(u));
+      }
     });
 
     awareness.on("update", ({ added, updated, removed }, origin) => {
       if (origin === "socket") return;
       const clients = [...added, ...updated, ...removed];
-      const packet = awarenessProtocol.encodeAwarenessUpdate(awareness, clients);
+      const packet = awarenessProtocol.encodeAwarenessUpdate(
+        awareness,
+        clients
+      );
       socket.emit("awareness-update", Array.from(packet));
     });
   }, [editor]);
 
-  // Guardar documento
+  // 💾 Guardar documento
   const saveDocument = async () => {
     const token = localStorage.getItem("token");
 
-    await fetch(`${SOCKET_URL}/api/documents/${documentId}`, {
+    const res = await fetch(`${SOCKET_URL}/api/documents/${documentId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -145,11 +152,24 @@ export default function DocumentEditor({ documentId }) {
       body: JSON.stringify({ title }),
     });
 
+    const updated = await res.json();
+    setTitle(updated.title);
+
+    if (updated.fileNodeId) {
+      await fetch(`${SOCKET_URL}/api/fileNodes/${updated.fileNodeId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: updated.title }),
+      });
+    }
+
     socketRef.current.emit("save-document");
-    alert("Documento guardado");
   };
 
-  // ➕ Invitar
+  // ➕ INVITAR A COLABORADOR
   const inviteCollaborator = async () => {
     if (!inviteEmail) return;
 
@@ -174,21 +194,40 @@ export default function DocumentEditor({ documentId }) {
     setInviteEmail("");
   };
 
-  // Exportaciones
+  // ❌ ELIMINAR COLABORADOR
+  const removeCollaborator = async (userId) => {
+    if (!window.confirm("¿Quitar acceso a este colaborador?")) return;
+
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `${SOCKET_URL}/api/documents/${documentId}/collaborators/${userId}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) return alert(data.message || "Error al eliminar");
+
+    setDocData(data); // Actualizar UI
+  };
+
+  // EXPORTAR
   const exportAsText = () => {
     const blob = new Blob([editor.getText()], { type: "text/plain" });
-    const link = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = link;
+    a.href = URL.createObjectURL(blob);
     a.download = `${title}.txt`;
     a.click();
   };
 
   const exportAsHTML = () => {
     const blob = new Blob([editor.getHTML()], { type: "text/html" });
-    const link = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = link;
+    a.href = URL.createObjectURL(blob);
     a.download = `${title}.html`;
     a.click();
   };
@@ -198,196 +237,113 @@ export default function DocumentEditor({ documentId }) {
     const canvas = await html2canvas(el);
     const img = canvas.toDataURL("image/png");
 
-    const pdf = new jsPDF();
+    const pdf = new jsPDF("p", "mm", "a4");
     pdf.addImage(img, "PNG", 0, 0, 210, 0);
     pdf.save(`${title}.pdf`);
   };
 
-  // 🌟 Toolbar (Tailwind)
+  // UI
   const Toolbar = () => (
-    <div className="flex flex-wrap gap-2 p-2 bg-gray-100 border rounded">
+    <div className="glass flex flex-wrap gap-2 p-3 rounded-lg border border-cyan-400/20 shadow-lg mb-4">
+      <button className="tool-btn font-bold" onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
+      <button className="tool-btn italic font-bold" onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
+      <button className="tool-btn underline font-bold" onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
 
-      {/* Bold / Italic / Underline */}
-      <button
-        className="px-2 py-1 border rounded hover:bg-gray-200 font-bold"
-        onClick={() => editor.chain().focus().toggleBold().run()}
-      >
-        B
-      </button>
+      <input type="color" className="tool-color" onChange={(e)=>editor.chain().focus().setColor(e.target.value).run()} />
 
-      <button
-        className="px-2 py-1 border rounded hover:bg-gray-200 italic font-bold"
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-      >
-        I
-      </button>
-
-      <button
-        className="px-2 py-1 border rounded hover:bg-gray-200 underline font-bold"
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-      >
-        U
-      </button>
-
-      {/* Color */}
-      <input
-        type="color"
-        className="w-10 h-10 border rounded"
-        onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-      />
-
-      {/* Tamaño */}
-      <select
-        className="border rounded px-2 py-1"
-        onChange={(e) =>
-          editor.chain().focus().setFontSize(e.target.value).run()
-        }
-      >
-        {[12, 14, 16, 20, 24, 30, 36].map((s) => (
-          <option key={s} value={`${s}px`}>
-            {s}
-          </option>
-        ))}
+      <select className="tool-select" onChange={(e)=>editor.chain().focus().setFontSize(e.target.value).run()}>
+        {[12,14,16,18,24,30,36].map(px => <option key={px}>{px}px</option>)}
       </select>
 
-      {/* Fuente */}
-      <select
-        className="border rounded px-2 py-1"
-        onChange={(e) =>
-          editor.chain().focus().setFontFamily(e.target.value).run()
-        }
-      >
-        <option value="Arial">Arial</option>
-        <option value="Georgia">Georgia</option>
-        <option value="Times New Roman">Times New Roman</option>
-        <option value="Courier New">Courier New</option>
+      <select className="tool-select" onChange={(e)=>editor.chain().focus().setFontFamily(e.target.value).run()}>
+        <option>Arial</option>
+        <option>Georgia</option>
+        <option>Courier New</option>
+        <option>Times New Roman</option>
       </select>
 
-      {/* Alineación */}
-      <button
-        className="px-2 py-1 border rounded hover:bg-gray-200"
-        onClick={() => editor.chain().focus().setTextAlign("left").run()}
-      >
-        ⬅️
-      </button>
-
-      <button
-        className="px-2 py-1 border rounded hover:bg-gray-200"
-        onClick={() => editor.chain().focus().setTextAlign("center").run()}
-      >
-        ☰
-      </button>
-
-      <button
-        className="px-2 py-1 border rounded hover:bg-gray-200"
-        onClick={() => editor.chain().focus().setTextAlign("right").run()}
-      >
-        ➡️
-      </button>
-
-      <button
-        className="px-2 py-1 border rounded hover:bg-gray-200"
-        onClick={() => editor.chain().focus().setTextAlign("justify").run()}
-      >
-        📐
-      </button>
+      <button className="tool-btn" onClick={()=>editor.chain().focus().setTextAlign("left").run()}>⬅️</button>
+      <button className="tool-btn" onClick={()=>editor.chain().focus().setTextAlign("center").run()}>☰</button>
+      <button className="tool-btn" onClick={()=>editor.chain().focus().setTextAlign("right").run()}>➡️</button>
+      <button className="tool-btn" onClick={()=>editor.chain().focus().setTextAlign("justify").run()}>📐</button>
     </div>
   );
 
-  if (!editor) return <p className="p-8">Cargando editor...</p>;
+  if (!editor) return <p className="text-gray-300 p-8">Cargando editor...</p>;
 
   if (joinError)
     return (
-      <div className="p-8 text-center text-red-600">
-        <h2 className="text-xl font-bold">No puedes abrir este documento</h2>
-        <p>{joinError}</p>
+      <div className="p-8 text-center text-red-400">
+        <h2 className="text-2xl font-bold">Acceso Denegado</h2>
+        <p className="mt-2">{joinError}</p>
       </div>
     );
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-4">
+    <div className="p-8 max-w-5xl mx-auto space-y-6 text-gray-100">
 
-      {/* Título */}
       <input
-        className="border p-2 rounded w-full text-xl font-semibold"
+        className="bg-[#1E2233] text-cyan-300 text-3xl font-bold px-4 py-2 rounded-lg border border-white/10 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500 w-full"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
 
-      {/* Toolbar */}
       <Toolbar />
 
-      {/* Acciones */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-3">
 
-        <button
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          onClick={saveDocument}
-        >
-          Guardar
-        </button>
+        <button className="btn-blue" onClick={saveDocument}>💾 Guardar</button>
+        <button className="btn-gray" onClick={exportAsText}>TXT</button>
+        <button className="btn-purple" onClick={exportAsHTML}>HTML</button>
+        <button className="btn-red" onClick={exportAsPDF}>PDF</button>
 
-        <button className="px-3 py-2 bg-gray-700 text-white rounded" onClick={exportAsText}>
-          TXT
-        </button>
-
-        <button className="px-3 py-2 bg-purple-700 text-white rounded" onClick={exportAsHTML}>
-          HTML
-        </button>
-
-        <button className="px-3 py-2 bg-red-700 text-white rounded" onClick={exportAsPDF}>
-          PDF
-        </button>
-
-        {/* Invitación */}
         <input
           type="email"
-          className="border p-2 rounded"
           placeholder="Email colaborador"
           value={inviteEmail}
           onChange={(e) => setInviteEmail(e.target.value)}
+          className="input-normal"
         />
 
-        <button
-          className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          onClick={inviteCollaborator}
-        >
-          Invitar
-        </button>
+        <button className="btn-green" onClick={inviteCollaborator}>+ Invitar</button>
 
-        {/* Eliminar */}
         <button
-          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          className="btn-red"
           onClick={async () => {
             if (!window.confirm("¿Eliminar documento?")) return;
             await deleteDocument(documentId);
             window.location.href = "/dashboard";
           }}
         >
-          Eliminar
+          🗑 Eliminar
         </button>
       </div>
 
-      {/* Info */}
       {docData && (
-        <div className="p-3 bg-gray-50 border rounded">
-          <p><b>Propietario:</b> {docData.owner?.name}</p>
-          <p><b>Colaboradores:</b></p>
-          <ul className="list-disc ml-5">
+        <div className="glass p-4 rounded-lg border border-white/10 shadow-lg">
+          <p><b className="text-cyan-300">Propietario:</b> {docData.owner?.name}</p>
+
+          <p className="mt-2 text-cyan-300 font-semibold">Colaboradores</p>
+          <ul className="ml-6 space-y-2">
             {docData.collaborators.map((c) => (
-              <li key={c._id}>
-                {c.name} ({c.email})
+              <li key={c._id} className="flex justify-between items-center">
+                <span>{c.name} ({c.email})</span>
+
+                <button
+                  onClick={() => removeCollaborator(c._id)}
+                  className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 rounded"
+                >
+                  Quitar
+                </button>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Editor */}
-      <EditorContent
-        editor={editor}
-        className="tiptap border p-4 bg-white rounded min-h-[500px]"
-      />
+      <div className="glass p-5 rounded-lg border border-cyan-400/20 shadow-xl">
+        <EditorContent editor={editor} className="tiptap min-h-[600px] text-gray-100" />
+      </div>
     </div>
   );
 }

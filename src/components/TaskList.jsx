@@ -16,7 +16,11 @@ const TaskList = ({
   normalizeTask,
 }) => {
   if (tasks.length === 0) {
-    return <p className="text-gray-500">No hay tareas todavía.</p>;
+    return (
+      <p className="text-gray-400 text-center py-6 italic">
+        No hay tareas todavía.
+      </p>
+    );
   }
 
   const handleDeleteFile = async (taskId, filename) => {
@@ -64,50 +68,50 @@ const TaskList = ({
   const getSubtaskProgress = (task) => {
     const total = task.subtasks?.length || 0;
     if (!total) return null;
-
     const done = task.subtasks.filter((s) => s.done).length;
     const percentage = Math.round((done / total) * 100);
     return { total, done, percentage };
   };
 
-  const getUrgencyClass = (task) => {
-    if (!task.dueDate) return "bg-gray-50";
+  const urgencyColor = (task) => {
+    if (!task.dueDate) return "border-white/10";
+
     const now = new Date();
     const limit = new Date(task.dueDate);
-    const diffHours = (limit - now) / 1000 / 60 / 60;
+    const diff = (limit - now) / (1000 * 60 * 60);
 
-    if (diffHours < 0) return "bg-red-100";
-    if (diffHours < 24) return "bg-orange-100";
-    return "bg-gray-50";
+    if (diff < 0) return "border-red-500/40";
+    if (diff < 24) return "border-yellow-500/40";
+    return "border-white/10";
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
       {tasks.map((task) => {
         const progress = getSubtaskProgress(task);
 
         return (
           <div
             key={task._id}
-            className={`flex flex-col sm:flex-row sm:items-center justify-between 
-              border rounded px-4 py-3 ${getUrgencyClass(task)}
-            `}
+            className={`bg-white/5 backdrop-blur-xl border ${urgencyColor(
+              task
+            )} rounded-xl p-6 shadow-lg transition`}
           >
-            {/* Info */}
-            <div className="flex-1">
-              {/* TÍTULO */}
+            {/* ---------- HEADER ---------- */}
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   checked={task.completed}
                   onChange={() => onToggle(task._id, !task.completed)}
+                  className="w-5 h-5 accent-cyan-400"
                 />
 
                 <span
-                  className={`font-medium ${
+                  className={`text-lg font-semibold ${
                     task.completed
-                      ? "line-through text-gray-400"
-                      : "text-gray-800"
+                      ? "line-through text-gray-500"
+                      : "text-gray-100"
                   }`}
                 >
                   {task.title}
@@ -115,12 +119,12 @@ const TaskList = ({
 
                 {task.priority && (
                   <span
-                    className={`text-xs px-2 py-1 rounded-full text-white ${
+                    className={`text-xs px-2 py-1 rounded-lg text-white ${
                       task.priority === "Alta"
-                        ? "bg-red-500"
+                        ? "bg-red-600/70"
                         : task.priority === "Media"
-                        ? "bg-yellow-500"
-                        : "bg-green-500"
+                        ? "bg-yellow-600/70"
+                        : "bg-green-600/70"
                     }`}
                   >
                     {task.priority}
@@ -128,211 +132,210 @@ const TaskList = ({
                 )}
 
                 {task.dueDate && (
-                  <span className="text-xs ml-2 text-gray-700">
+                  <span className="text-xs text-gray-400 ml-1">
                     📅 {new Date(task.dueDate).toLocaleDateString()}
                   </span>
                 )}
               </div>
 
-              {/* PROGRESO SUBTAREAS */}
-              {progress && (
-                <div className="ml-7 mt-2">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${
-                        progress.percentage === 100
-                          ? "bg-green-500"
-                          : "bg-blue-500"
-                      }`}
-                      style={{ width: `${progress.percentage}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-1">
-                    {progress.percentage}% completado ({progress.done}/
-                    {progress.total})
-                  </p>
-                </div>
-              )}
-
-              {/* SUBTAREAS */}
-              {task.subtasks?.length > 0 && (
-                <div className="mt-2 ml-7">
-                  <p className="text-xs text-gray-500 font-semibold">
-                    Subtareas:
-                  </p>
-
-                  {task.subtasks.map((sub) => (
-                    <div
-                      key={sub._id}
-                      className="bg-white border rounded p-2 mt-2"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={sub.done}
-                            onChange={() =>
-                              onToggleSub(task._id, sub._id, !sub.done)
-                            }
-                          />
-                          <span
-                            className={
-                              sub.done ? "line-through text-gray-400" : ""
-                            }
-                          >
-                            {sub.text}
-                          </span>
-                        </div>
-
-                        <button
-                          className="text-red-500 text-xs"
-                          onClick={() => onDeleteSub(task._id, sub._id)}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-
-                      {/* Archivos */}
-                      {sub.attachments?.length > 0 && (
-                        <div className="ml-6 mt-2">
-                          <p className="text-[11px] text-gray-500">
-                            Archivos:
-                          </p>
-
-                          {sub.attachments.map((file) => (
-                            <div
-                              key={file.filename}
-                              className="flex justify-between items-center text-xs bg-gray-50 px-2 py-1 rounded border mt-1"
-                            >
-                              <a
-                                href={`http://localhost:5000${file.url}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-blue-600 underline"
-                              >
-                                {file.filename}
-                              </a>
-
-                              <button
-                                className="text-red-500 ml-4"
-                                onClick={() =>
-                                  handleDeleteSubtaskFile(
-                                    task._id,
-                                    sub._id,
-                                    file.filename
-                                  )
-                                }
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Subir archivo */}
-                      <div className="ml-6 mt-2">
-                        <input
-                          type="file"
-                          className="text-xs"
-                          onChange={(e) =>
-                            uploadSubtaskFile(
-                              task._id,
-                              sub._id,
-                              e.target.files[0]
-                            )
-                          }
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* AGREGAR SUBTAREA */}
-              <div className="ml-7 mt-2">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const text = e.target.sub.value.trim();
-                    if (!text) return;
-                    onAddSub(task._id, text);
-                    e.target.reset();
-                  }}
+              {/* ACTION BUTTONS */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onEdit(task)}
+                  className="text-xs px-3 py-1 rounded bg-blue-600/30 border border-blue-500/40 text-blue-300 hover:bg-blue-600/50 transition"
                 >
-                  <input
-                    name="sub"
-                    placeholder="Agregar subtarea..."
-                    className="border px-2 py-1 text-sm rounded w-full"
-                  />
-                </form>
-              </div>
+                  Editar
+                </button>
 
-              {/* ARCHIVOS DE TAREA */}
-              {task.attachments?.length > 0 && (
-                <div className="mt-3 ml-7">
-                  <p className="text-xs text-gray-500">Adjuntos:</p>
+                <button
+                  onClick={() => onMakeGlobal(task._id)}
+                  className="text-xs px-3 py-1 rounded bg-purple-600/30 border border-purple-500/40 text-purple-300 hover:bg-purple-600/50 transition"
+                >
+                  Publicar
+                </button>
 
-                  {task.attachments.map((file) => (
-                    <div
-                      key={file.filename}
-                      className="flex justify-between items-center text-xs bg-white px-2 py-1 rounded border mt-1"
-                    >
-                      <a
-                        href={`http://localhost:5000${file.url}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 underline"
-                      >
-                        {file.filename}
-                      </a>
-
-                      <button
-                        className="text-red-500 ml-4"
-                        onClick={() =>
-                          handleDeleteFile(task._id, file.filename)
-                        }
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Subir archivo */}
-              <div className="ml-7 mt-2">
-                <FileUploader
-                  taskId={task._id}
-                  onUploaded={(task) =>
-                    onTaskUpdated(normalizeTask(task))
-                  }
-                />
+                <button
+                  onClick={() => onDelete(task._id)}
+                  className="text-xs px-3 py-1 rounded bg-red-600/30 border border-red-500/40 text-red-300 hover:bg-red-600/50 transition"
+                >
+                  Eliminar
+                </button>
               </div>
             </div>
 
-            {/* BOTONES */}
-            <div className="flex items-center gap-2 mt-3 sm:mt-0 sm:ml-4">
-              <button
-                onClick={() => onEdit(task)}
-                className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
-              >
-                Editar
-              </button>
+            {/* ---------- PROGRESO ---------- */}
+            {progress && (
+              <div className="mt-4">
+                <div className="w-full bg-gray-700/30 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${
+                      progress.percentage === 100
+                        ? "bg-green-400"
+                        : "bg-cyan-400"
+                    }`}
+                    style={{ width: `${progress.percentage}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {progress.percentage}% completado ({progress.done}/
+                  {progress.total})
+                </p>
+              </div>
+            )}
 
-              <button
-                onClick={() => onMakeGlobal(task._id)}
-                className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded"
-              >
-                Publicar global
-              </button>
+            {/* ---------- SUBTAREAS ---------- */}
+            <div className="mt-5 space-y-3">
+              {task.subtasks?.length > 0 && (
+                <p className="text-sm text-cyan-300 font-semibold">Subtareas</p>
+              )}
 
-              <button
-                onClick={() => onDelete(task._id)}
-                className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-              >
-                Eliminar
-              </button>
+              {task.subtasks?.map((sub) => (
+                <div
+                  key={sub._id}
+                  className="bg-[#1E2233] border border-white/10 rounded-lg p-3"
+                >
+                  <div className="flex justify-between items-center">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={sub.done}
+                        onChange={() =>
+                          onToggleSub(task._id, sub._id, !sub.done)
+                        }
+                        className="accent-cyan-400"
+                      />
+                      <span
+                        className={`text-sm ${
+                          sub.done
+                            ? "text-gray-500 line-through"
+                            : "text-gray-200"
+                        }`}
+                      >
+                        {sub.text}
+                      </span>
+                    </label>
+
+                    <button
+                      className="text-red-400 text-xs hover:text-red-300"
+                      onClick={() => onDeleteSub(task._id, sub._id)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+
+                  {/* Archivos de subtarea */}
+                  {sub.attachments?.length > 0 && (
+                    <div className="mt-2 ml-6">
+                      <p className="text-[11px] text-gray-400">Archivos:</p>
+
+                      {sub.attachments.map((file) => (
+                        <div
+                          key={file.filename}
+                          className="flex justify-between text-xs bg-[#151821] border border-white/10 px-2 py-1 rounded mt-1"
+                        >
+                          <a
+                            href={`http://localhost:5000${file.url}`}
+                            target="_blank"
+                            className="text-cyan-400 underline"
+                          >
+                            {file.filename}
+                          </a>
+
+                          <button
+                            className="text-red-400 hover:text-red-300 ml-3"
+                            onClick={() =>
+                              handleDeleteSubtaskFile(
+                                task._id,
+                                sub._id,
+                                file.filename
+                              )
+                            }
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Subir archivo */}
+                  <div className="mt-2 ml-6">
+                    <input
+                      type="file"
+                      className="text-xs text-gray-300"
+                      onChange={(e) =>
+                        uploadSubtaskFile(
+                          task._id,
+                          sub._id,
+                          e.target.files[0]
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ---------- AGREGAR SUBTAREA ---------- */}
+            <form
+              className="mt-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const text = e.target.sub.value.trim();
+                if (!text) return;
+                onAddSub(task._id, text);
+                e.target.reset();
+              }}
+            >
+              <input
+                name="sub"
+                placeholder="➕ Agregar subtarea..."
+                className="w-full bg-[#1E2233] border border-[#2A2F43] text-gray-200 
+                px-3 py-2 rounded-lg text-sm focus:border-cyan-400 focus:ring-2
+                focus:ring-cyan-500 transition"
+              />
+            </form>
+
+            {/* ---------- ARCHIVOS DE TAREA ---------- */}
+            {task.attachments?.length > 0 && (
+              <div className="mt-5">
+                <p className="text-sm text-cyan-300 font-semibold">
+                  Archivos adjuntos
+                </p>
+
+                {task.attachments.map((file) => (
+                  <div
+                    key={file.filename}
+                    className="flex justify-between text-xs bg-[#151821] border 
+                    border-white/10 px-3 py-2 rounded mt-1"
+                  >
+                    <a
+                      href={`http://localhost:5000${file.url}`}
+                      target="_blank"
+                      className="text-cyan-400 underline"
+                    >
+                      {file.filename}
+                    </a>
+
+                    <button
+                      className="text-red-400 hover:text-red-300"
+                      onClick={() =>
+                        handleDeleteFile(task._id, file.filename)
+                      }
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Subir archivo a tarea */}
+            <div className="mt-4">
+              <FileUploader
+                taskId={task._id}
+                onUploaded={(task) => onTaskUpdated(normalizeTask(task))}
+              />
             </div>
           </div>
         );

@@ -14,7 +14,7 @@ function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
 
   // ==========================================
-  // 🔄 Manejar cambios en inputs
+  // 🔄 Manejar cambios de inputs
   // ==========================================
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -31,14 +31,11 @@ function Login({ onLogin }) {
     try {
       const res = await API.post("/auth/login", form);
 
-      // Guardar access token
       localStorage.setItem("token", res.data.token);
-
-      // (Opcional) Guardar información del usuario
       localStorage.setItem("user", JSON.stringify(res.data.user));
 
       setLoading(false);
-      onLogin(); // notifica al App.js
+      onLogin();
     } catch (err) {
       console.error("Error al iniciar sesión:", err);
       setError("Credenciales inválidas. Intenta nuevamente.");
@@ -47,55 +44,79 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-300 p-6">
-      <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm">
-        <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">
-          Bienvenido
-        </h2>
+    <div className="min-h-screen flex items-center justify-center px-4 
+    bg-gradient-to-br from-[#0D0F18] via-[#131622] to-[#0D0F18]">
 
+      {/* CARD PRINCIPAL */}
+      <div className="w-full max-w-sm bg-white/5 backdrop-blur-xl 
+      border border-white/10 rounded-2xl p-8 shadow-2xl">
+
+        {/* LOGO */}
+        <div className="flex flex-col items-center mb-6">
+          <img
+            src="/logobc.png"
+            alt="Block Cloud Logo"
+            className="w-20 h-20 drop-shadow-[0_0_8px_#3B82F6]"
+          />
+
+          <h1 className="text-3xl font-extrabold text-cyan-400 tracking-wide mt-4">
+            BLOCK CLOUD
+          </h1>
+
+          <p className="text-gray-400 text-sm mt-1">
+            Accede a tu espacio productivo
+          </p>
+        </div>
+
+        {/* FORMULARIO */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Email */}
           <input
             type="email"
             name="email"
             placeholder="Correo electrónico"
             value={form.email}
             onChange={handleChange}
-            className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+            border border-[#2A2F43] focus:outline-none 
+            focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500 transition"
             required
           />
 
-          {/* Password */}
           <input
             type="password"
             name="password"
             placeholder="Contraseña"
             value={form.password}
             onChange={handleChange}
-            className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="bg-[#1E2233] text-gray-100 px-3 py-2 rounded-lg 
+            border border-[#2A2F43] focus:outline-none 
+            focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500 transition"
             required
           />
 
           <button
             type="submit"
-            className={`bg-blue-600 text-white font-semibold py-2 rounded hover:bg-blue-700 transition mt-2 ${
-              loading ? "opacity-60 cursor-not-allowed" : ""
-            }`}
             disabled={loading}
+            className={`w-full py-2 mt-2 rounded-lg text-white font-semibold 
+            bg-gradient-to-r from-blue-600 to-cyan-500 shadow-lg
+            hover:opacity-90 transition active:scale-95
+            ${loading ? "opacity-60 cursor-not-allowed" : ""}`}
           >
             {loading ? "Ingresando..." : "Iniciar Sesión"}
           </button>
         </form>
 
+        {/* ERROR */}
         {error && (
-          <p className="text-red-500 mt-4 text-center text-sm">{error}</p>
+          <p className="text-red-400 mt-4 text-center text-sm">{error}</p>
         )}
 
-        <p className="mt-6 text-center text-gray-600">
+        {/* REGISTRO */}
+        <p className="mt-6 text-center text-gray-400 text-sm">
           ¿No tienes cuenta?
           <button
             onClick={() => navigate("/register")}
-            className="text-blue-600 hover:underline font-semibold ml-1"
+            className="text-cyan-400 hover:underline font-semibold ml-1"
           >
             Regístrate
           </button>

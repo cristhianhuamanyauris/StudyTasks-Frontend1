@@ -30,7 +30,6 @@ export default function Profile() {
       const res = await updateProfile(form);
       setProfile(res.data);
       setEditing(false);
-      alert("Perfil actualizado");
     } catch (err) {
       console.error("Error actualizando perfil:", err);
     }
@@ -45,7 +44,6 @@ export default function Profile() {
     try {
       const res = await updateAvatar(file);
       setProfile(res.data);
-      alert("Avatar actualizado");
     } catch (err) {
       console.error("Error subiendo avatar:", err);
     }
@@ -53,125 +51,142 @@ export default function Profile() {
 
   if (!profile) {
     return (
-      <div className="p-6 text-center text-gray-600">
+      <div className="p-6 text-center text-gray-400">
         Cargando perfil...
       </div>
     );
   }
 
-  // ============================
-  // 🖼️ Avatar seguro (sin errores)
-  // ============================
   const avatarUrl = avatarPreview
     ? avatarPreview
     : profile.avatar
     ? `http://localhost:5000${profile.avatar}`
-    : `https://ui-avatars.com/api/?name=${profile.firstName}+${profile.lastName}&size=120&background=1E40AF&color=fff`;
+    : `https://ui-avatars.com/api/?name=${profile.firstName}+${profile.lastName}&size=200&background=0ea5e9&color=fff`;
 
   return (
-    <div className="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-md">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Mi Perfil</h1>
+    <div className="max-w-4xl mx-auto p-8 text-gray-100">
 
-      {/* Avatar */}
-      <div className="flex items-center gap-6 mb-6">
-        <img
-          src={avatarUrl}
-          alt="avatar"
-          className="w-28 h-28 rounded-full object-cover border shadow"
-        />
-        <label className="px-4 py-2 bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700 transition">
-          Cambiar avatar
-          <input type="file" hidden onChange={handleAvatarUpload} />
-        </label>
+      {/* HEADER */}
+      <h1 className="text-4xl font-extrabold text-cyan-400 mb-10 tracking-wide">
+        Mi Perfil
+      </h1>
+
+      <div className="glass border border-cyan-400/20 rounded-2xl p-8 shadow-xl">
+
+        {/* AVATAR SECTION */}
+        <div className="flex items-center gap-6 mb-8">
+          <img
+            src={avatarUrl}
+            alt="avatar"
+            className="w-32 h-32 rounded-full border-4 border-cyan-400/40 shadow-xl object-cover"
+          />
+
+          <label className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg cursor-pointer hover:opacity-90 active:scale-95 transition">
+            Cambiar avatar
+            <input type="file" hidden onChange={handleAvatarUpload} />
+          </label>
+        </div>
+
+        {/* INFO SECTION */}
+        <div className="space-y-4">
+          {editing ? (
+            <>
+              {/* Editable Inputs */}
+              <input
+                className="input-normal w-full"
+                placeholder="Nombre"
+                value={form.firstName || ""}
+                onChange={(e) =>
+                  setForm({ ...form, firstName: e.target.value })
+                }
+              />
+
+              <input
+                className="input-normal w-full"
+                placeholder="Apellido"
+                value={form.lastName || ""}
+                onChange={(e) =>
+                  setForm({ ...form, lastName: e.target.value })
+                }
+              />
+
+              <input
+                className="input-normal w-full"
+                placeholder="Profesión"
+                value={form.profession || ""}
+                onChange={(e) =>
+                  setForm({ ...form, profession: e.target.value })
+                }
+              />
+
+              <input
+                className="input-normal w-full"
+                placeholder="País"
+                value={form.country || ""}
+                onChange={(e) =>
+                  setForm({ ...form, country: e.target.value })
+                }
+              />
+
+              <textarea
+                className="input-normal w-full h-28 resize-none"
+                placeholder="Biografía"
+                value={form.bio || ""}
+                onChange={(e) => setForm({ ...form, bio: e.target.value })}
+              ></textarea>
+
+              <button
+                onClick={handleUpdate}
+                className="btn-green mt-4"
+              >
+                Guardar cambios
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Readonly Data */}
+              <p>
+                <span className="text-cyan-300 font-semibold">Nombre:</span>{" "}
+                {profile.firstName} {profile.lastName}
+              </p>
+
+              <p>
+                <span className="text-cyan-300 font-semibold">Email:</span>{" "}
+                {profile.email}
+              </p>
+
+              <p>
+                <span className="text-cyan-300 font-semibold">
+                  Profesión:
+                </span>{" "}
+                {profile.profession || "—"}
+              </p>
+
+              <p>
+                <span className="text-cyan-300 font-semibold">País:</span>{" "}
+                {profile.country || "—"}
+              </p>
+
+              <p>
+                <span className="text-cyan-300 font-semibold">Bio:</span>{" "}
+                {profile.bio || "—"}
+              </p>
+
+              <button
+                onClick={() => setEditing(true)}
+                className="btn-blue mt-4"
+              >
+                Editar perfil
+              </button>
+            </>
+          )}
+        </div>
+
+        <p className="text-gray-400 text-sm mt-8">
+          Miembro desde:{" "}
+          {new Date(profile.createdAt).toLocaleDateString()}
+        </p>
       </div>
-
-      {/* Datos */}
-      <div className="space-y-3">
-        {editing ? (
-          <>
-            <input
-              className="border p-2 rounded w-full"
-              placeholder="Nombre"
-              value={form.firstName || ""}
-              onChange={(e) =>
-                setForm({ ...form, firstName: e.target.value })
-              }
-            />
-
-            <input
-              className="border p-2 rounded w-full"
-              placeholder="Apellido"
-              value={form.lastName || ""}
-              onChange={(e) =>
-                setForm({ ...form, lastName: e.target.value })
-              }
-            />
-
-            <input
-              className="border p-2 rounded w-full"
-              placeholder="Profesión"
-              value={form.profession || ""}
-              onChange={(e) =>
-                setForm({ ...form, profession: e.target.value })
-              }
-            />
-
-            <input
-              className="border p-2 rounded w-full"
-              placeholder="País"
-              value={form.country || ""}
-              onChange={(e) =>
-                setForm({ ...form, country: e.target.value })
-              }
-            />
-
-            <textarea
-              className="border p-2 rounded w-full"
-              placeholder="Biografía"
-              value={form.bio || ""}
-              onChange={(e) =>
-                setForm({ ...form, bio: e.target.value })
-              }
-            ></textarea>
-
-            <button
-              onClick={handleUpdate}
-              className="bg-green-600 text-white px-4 py-2 rounded mt-3 hover:bg-green-700 transition"
-            >
-              Guardar cambios
-            </button>
-          </>
-        ) : (
-          <>
-            <p>
-              <b>Nombre:</b> {profile.firstName} {profile.lastName}
-            </p>
-            <p>
-              <b>Email:</b> {profile.email}
-            </p>
-            <p>
-              <b>Profesión:</b> {profile.profession || "—"}
-            </p>
-            <p>
-              <b>País:</b> {profile.country || "—"}
-            </p>
-            <p>
-              <b>Bio:</b> {profile.bio || "—"}
-            </p>
-
-            <button
-              onClick={() => setEditing(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded mt-3 hover:bg-blue-700 transition"
-            >
-              Editar perfil
-            </button>
-          </>
-        )}
-      </div>
-
-      <p className="text-gray-500 text-sm mt-6">
-        Miembro desde: {new Date(profile.createdAt).toLocaleDateString()}
-      </p>
     </div>
   );
 }

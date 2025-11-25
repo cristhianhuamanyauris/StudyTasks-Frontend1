@@ -5,7 +5,6 @@ import GlobalTaskCard from "../components/GlobalTaskCard";
 export default function GlobalTasks() {
   const [tasks, setTasks] = useState([]);
 
-  // Filtros
   const [priorityFilter, setPriorityFilter] = useState("Todas");
   const [sortByDate, setSortByDate] = useState("none");
   const [onlyWithFiles, setOnlyWithFiles] = useState(false);
@@ -25,44 +24,39 @@ export default function GlobalTasks() {
     }
   };
 
-  // ===========================
-  // FILTROS AVANZADOS
-  // ===========================
+  // 🔎 FILTROS AVANZADOS
   const applyFilters = () => {
     let filtered = [...tasks];
 
-    // 🔍 Buscar por título, autor o email
-    if (search.trim() !== "") {
+    // Búsqueda
+    if (search.trim()) {
       const text = search.toLowerCase();
-
       filtered = filtered.filter((t) => {
-        const title = t.title?.toLowerCase() || "";
-        const name = t.userId?.name?.toLowerCase() || "";
+        const titulo = t.title?.toLowerCase() || "";
+        const nombre = t.userId?.name?.toLowerCase() || "";
         const email = t.userId?.email?.toLowerCase() || "";
-
         return (
-          title.includes(text) ||
-          name.includes(text) ||
+          titulo.includes(text) ||
+          nombre.includes(text) ||
           email.includes(text)
         );
       });
     }
 
-    // Filtrar por prioridad
+    // Prioridad
     if (priorityFilter !== "Todas") {
       filtered = filtered.filter((t) => t.priority === priorityFilter);
     }
 
-    // Solo tareas con archivos
+    // Con archivos
     if (onlyWithFiles) {
       filtered = filtered.filter((t) => t.attachments?.length > 0);
     }
 
-    // Solo próximas a vencer (<48h)
+    // Urgentes (<48 horas)
     if (onlyUrgent) {
       const now = new Date();
-      const limit = 48 * 60 * 60 * 1000; // 48h
-
+      const limit = 48 * 60 * 60 * 1000;
       filtered = filtered.filter((t) => {
         if (!t.dueDate) return false;
         const diff = new Date(t.dueDate) - now;
@@ -70,15 +64,17 @@ export default function GlobalTasks() {
       });
     }
 
-    // Orden por fecha
+    // Ordenar por fecha
     if (sortByDate === "asc") {
-      filtered.sort((a, b) =>
-        new Date(a.dueDate || 9999) - new Date(b.dueDate || 9999)
+      filtered.sort(
+        (a, b) =>
+          new Date(a.dueDate || 9999) - new Date(b.dueDate || 9999)
       );
     }
     if (sortByDate === "desc") {
-      filtered.sort((a, b) =>
-        new Date(b.dueDate || 0) - new Date(a.dueDate || 0)
+      filtered.sort(
+        (a, b) =>
+          new Date(b.dueDate || 0) - new Date(a.dueDate || 0)
       );
     }
 
@@ -88,33 +84,34 @@ export default function GlobalTasks() {
   const filteredTasks = applyFilters();
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="min-h-screen p-10 text-gray-200">
 
-      <h1 className="text-3xl font-bold mb-6 text-center">
-        Tareas globales 🌍
+      {/* Título */}
+      <h1 className="text-4xl font-extrabold text-center text-cyan-400 mb-10 tracking-wide">
+        Tareas Globales 🌍
       </h1>
 
-      {/* ============================================
-         🔍 PANEL DE FILTROS
-      ==============================================*/}
-      <div className="bg-white shadow p-4 rounded-lg mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* PANEL DE FILTROS */}
+      <div className="glass border border-cyan-400/20 p-6 rounded-xl mb-10 grid grid-cols-1 md:grid-cols-4 gap-6">
 
-        {/* Barra de búsqueda */}
+        {/* Búsqueda */}
         <div className="md:col-span-4">
           <input
             type="text"
-            placeholder="Buscar por título o autor..."
+            placeholder="Buscar por título, autor o email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full border p-2 rounded"
+            className="w-full p-3 rounded-lg bg-black/40 border border-cyan-500/30 text-gray-200 focus:ring-2 focus:ring-cyan-400 outline-none"
           />
         </div>
 
-        {/* Filtro por prioridad */}
+        {/* Prioridad */}
         <div>
-          <label className="font-semibold text-sm">Prioridad:</label>
+          <label className="block text-sm text-gray-300 mb-1 font-semibold">
+            Prioridad:
+          </label>
           <select
-            className="w-full border p-2 rounded mt-1"
+            className="w-full p-3 bg-black/40 rounded border border-cyan-500/30 text-gray-200"
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
           >
@@ -125,11 +122,13 @@ export default function GlobalTasks() {
           </select>
         </div>
 
-        {/* Ordenar por fecha */}
+        {/* Orden */}
         <div>
-          <label className="font-semibold text-sm">Ordenar por fecha:</label>
+          <label className="block text-sm text-gray-300 mb-1 font-semibold">
+            Ordenar por fecha:
+          </label>
           <select
-            className="w-full border p-2 rounded mt-1"
+            className="w-full p-3 bg-black/40 rounded border border-cyan-500/30 text-gray-200"
             value={sortByDate}
             onChange={(e) => setSortByDate(e.target.value)}
           >
@@ -140,33 +139,31 @@ export default function GlobalTasks() {
         </div>
 
         {/* Solo con archivos */}
-        <div className="flex items-center mt-6 gap-2">
+        <div className="flex items-center gap-2 text-gray-300 mt-6">
           <input
             type="checkbox"
             checked={onlyWithFiles}
             onChange={(e) => setOnlyWithFiles(e.target.checked)}
+            className="w-4 h-4"
           />
           <span className="text-sm">Solo con archivos</span>
         </div>
 
-        {/* Próximas a vencer */}
-        <div className="flex items-center mt-6 gap-2">
+        {/* Urgentes */}
+        <div className="flex items-center gap-2 text-gray-300 mt-6">
           <input
             type="checkbox"
             checked={onlyUrgent}
             onChange={(e) => setOnlyUrgent(e.target.checked)}
+            className="w-4 h-4"
           />
           <span className="text-sm">Próximas a vencer (&lt;48h)</span>
         </div>
-
       </div>
 
-      {/* ============================================
-         🟦 LISTA DE TAREAS
-      ==============================================*/}
-
+      {/* LISTA DE TAREAS */}
       {filteredTasks.length === 0 && (
-        <p className="text-gray-500 text-center">
+        <p className="text-gray-400 text-center text-lg">
           No hay tareas que coincidan con los filtros.
         </p>
       )}

@@ -36,12 +36,17 @@ const FileUploader = ({ taskId, onUploaded }) => {
   };
 
   return (
-    <div className="mt-1">
+    <div className="mt-2">
       <button
         type="button"
         onClick={handleClick}
-        className="text-xs text-blue-600 underline disabled:opacity-50"
         disabled={uploading}
+        className={`
+          text-xs px-3 py-1 rounded 
+          text-cyan-300 hover:text-cyan-200 
+          transition active:scale-95
+          ${uploading ? "opacity-50 cursor-not-allowed" : "hover:underline"}
+        `}
       >
         {uploading ? "Subiendo..." : "Adjuntar archivo"}
       </button>

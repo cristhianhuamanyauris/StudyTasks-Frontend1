@@ -11,35 +11,36 @@ export default function GlobalTaskCard({ task }) {
 
   const due = task.dueDate ? new Date(task.dueDate) : null;
 
-  // ===============================
-  // ⭐ Guardar tarea global en Mis tareas
-  // ===============================
   const handleSaveTask = async () => {
     if (saving) return;
     setSaving(true);
 
     try {
       await API.post(`/tasks/${task._id}/duplicate`);
-      alert("Tarea guardada en tus tareas ✨");
+      alert("✨ Tarea guardada en tus tareas");
     } catch (err) {
       console.error("Error duplicando tarea:", err);
-      alert("No se pudo guardar la tarea.");
+      alert("⚠️ No se pudo guardar la tarea.");
     }
 
     setSaving(false);
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-5 border border-gray-200 hover:shadow-lg transition">
-
+    <div
+      className="glass p-5 rounded-xl border border-cyan-400/20 shadow-xl 
+        hover:shadow-cyan-400/20 transition-all duration-300"
+    >
       {/* TÍTULO */}
-      <h3 className="text-lg font-semibold text-gray-800">{task.title}</h3>
+      <h3 className="text-xl font-bold text-cyan-300 tracking-wide">
+        {task.title}
+      </h3>
 
       {/* PUBLICADO POR */}
       {task.userId && (
-        <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-          <FaUser className="text-gray-500" />
-          <span>
+        <div className="flex items-center gap-2 mt-2 text-sm text-gray-300">
+          <FaUser className="text-cyan-300/70" />
+          <span className="opacity-80">
             {task.userId.name} ({task.userId.email})
           </span>
         </div>
@@ -47,35 +48,36 @@ export default function GlobalTaskCard({ task }) {
 
       {/* PRIORIDAD */}
       <span
-        className={`inline-block mt-2 px-2 py-1 text-xs text-white rounded-full ${
-          task.priority === "Alta"
-            ? "bg-red-500"
-            : task.priority === "Media"
-            ? "bg-yellow-500"
-            : "bg-green-600"
-        }`}
+        className={`inline-block mt-3 px-2 py-1 text-xs text-white rounded-full 
+          ${
+            task.priority === "Alta"
+              ? "bg-red-600"
+              : task.priority === "Media"
+              ? "bg-yellow-500"
+              : "bg-green-600"
+          }`}
       >
         {task.priority}
       </span>
 
       {/* FECHA */}
       {due && (
-        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-          <FaClock />
+        <div className="flex items-center gap-2 mt-3 text-xs text-gray-300">
+          <FaClock className="text-cyan-300" />
           {due.toLocaleDateString()}
         </div>
       )}
 
-      {/* PROGRESO DE SUBTAREAS */}
+      {/* PROGRESO SUBTAREAS */}
       {total > 0 && (
-        <div className="mt-3">
-          <div className="w-full h-2 bg-gray-200 rounded">
+        <div className="mt-4">
+          <div className="w-full h-2 bg-black/30 rounded overflow-hidden">
             <div
-              className="h-2 bg-blue-500 rounded"
+              className="h-2 bg-cyan-400 rounded transition-all"
               style={{ width: `${percent}%` }}
             ></div>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-1">
             {percent}% ({done}/{total})
           </p>
         </div>
@@ -83,10 +85,10 @@ export default function GlobalTaskCard({ task }) {
 
       {/* ADJUNTOS */}
       {task.attachments?.length > 0 && (
-        <div className="mt-3 text-sm">
-          <div className="flex items-center gap-2 text-gray-700 mb-1">
-            <FaPaperclip className="text-gray-600" />
-            <span>Archivos adjuntos:</span>
+        <div className="mt-4 text-sm">
+          <div className="flex items-center gap-2 text-cyan-300 mb-1">
+            <FaPaperclip />
+            <span className="text-gray-300">Archivos:</span>
           </div>
 
           {task.attachments.map((file, idx) => (
@@ -95,7 +97,7 @@ export default function GlobalTaskCard({ task }) {
               href={`http://localhost:5000${file.url}`}
               target="_blank"
               rel="noreferrer"
-              className="text-blue-600 underline block text-xs"
+              className="text-cyan-300 underline block text-xs hover:text-cyan-200"
             >
               {file.filename}
             </a>
@@ -107,12 +109,13 @@ export default function GlobalTaskCard({ task }) {
       <button
         onClick={handleSaveTask}
         disabled={saving}
-        className={`mt-4 w-full flex items-center justify-center gap-2 
-          text-white px-3 py-2 rounded text-sm transition 
+        className={`mt-5 w-full flex items-center justify-center gap-2 
+          px-4 py-2 rounded-lg text-sm font-semibold transition
+          text-black
           ${
             saving
               ? "bg-gray-500 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
+              : "bg-cyan-300 hover:bg-cyan-200 shadow-md hover:shadow-cyan-300/30"
           }`}
       >
         <FaSave />
