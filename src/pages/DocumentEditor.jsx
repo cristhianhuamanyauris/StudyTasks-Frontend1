@@ -2,38 +2,56 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+
+import TextAlign from "@tiptap/extension-text-align";
+import Underline from "@tiptap/extension-underline";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import FontFamily from "@tiptap/extension-font-family";
+import FontSize from "tiptap-extension-font-size";
+
 import { io } from "socket.io-client";
 import * as Y from "yjs";
 import { ySyncPlugin, yCursorPlugin, yUndoPlugin } from "y-prosemirror";
 import { Awareness } from "y-protocols/awareness";
 import * as awarenessProtocol from "y-protocols/awareness";
 
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
+import { deleteDocument } from "../utils/documentApi";
+
 const SOCKET_URL = "http://localhost:5000";
 
 export default function DocumentEditor({ documentId }) {
   const [title, setTitle] = useState("");
+  const [docData, setDocData] = useState(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [joinError, setJoinError] = useState("");
 
-  // 🧠 Documento Yjs en memoria (instancia única)
+  // 🧠 Yjs Documento sincronizado
   const ydoc = useMemo(() => new Y.Doc(), []);
   const yXmlFragment = useMemo(() => ydoc.getXmlFragment("prosemirror"), [ydoc]);
 
-  // 🧍 Awareness
   const awareness = useMemo(() => new Awareness(ydoc), [ydoc]);
 
-  // 🎨 Usuario local
   const localUser = useMemo(() => {
     const colors = ["#ff0000", "#00aa00", "#0000ff", "#ff00aa", "#ffaa00"];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    return { name: "Usuario", color };
+    return { name: "Usuario", color: colors[Math.floor(Math.random() * colors.length)] };
   }, []);
 
-  // 🔌 Socket estable
   const socketRef = useRef(null);
 
-  // 📝 TipTap Editor
+  // 📝 Editor TipTap
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ history: false }),
+      Underline,
+      TextStyle,
+      Color,
+      FontFamily.configure({ types: ["textStyle"] }),
+      FontSize.configure({ types: ["textStyle"] }),
+      TextAlign.configure({ types: ["paragraph", "heading"] }),
     ],
     content: "",
     onCreate: ({ editor }) => {
@@ -43,7 +61,7 @@ export default function DocumentEditor({ documentId }) {
     },
   });
 
-  // 1️⃣ Conectar socket una sola vez
+  // 1️⃣ Socket
   useEffect(() => {
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL, {
@@ -52,170 +70,323 @@ export default function DocumentEditor({ documentId }) {
         reconnection: true,
       });
 
-      socketRef.current.on("connect", () => {
-        console.log("🟢 Socket conectado:", socketRef.current.id);
-      });
-
-      socketRef.current.on("disconnect", () => {
-        console.log("🔴 Socket desconectado");
-      });
+      socketRef.current.on("join-error", (msg) =>
+        setJoinError(msg || "No tienes acceso a este documento")
+      );
     }
-
-    const socket = socketRef.current;
-
-    // NO lo desconectamos — Socket estable para toda la app
-    return () => {
-      socket.off("connect");
-      socket.off("disconnect");
-    };
   }, []);
 
-  // 2️⃣ Cargar metadata (solo título)
+  // 2️⃣ Cargar metadata
   useEffect(() => {
-    const loadMetadata = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${SOCKET_URL}/api/documents/${documentId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const data = await res.json();
-        setTitle(data.title || "");
-      } catch (err) {
-        console.error("Error cargando documento:", err);
-      }
+    const load = async () => {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${SOCKET_URL}/api/documents/${documentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setTitle(data.title);
+      setDocData(data);
     };
-
-    if (documentId) loadMetadata();
+    load();
   }, [documentId]);
 
-  // 3️⃣ Configurar awareness local
+  // 3️⃣ Awareness local
   useEffect(() => {
-    awareness.setLocalState({
-      user: localUser,
-      cursor: null,
+    awareness.setLocalState({ user: localUser, cursor: null });
+    return () => awareness.setLocalState(null);
+  }, []);
+
+  // 4️⃣ Sincronización Yjs ↔ Socket
+  useEffect(() => {
+    if (!socketRef.current || !editor) return;
+
+    const socket = socketRef.current;
+    const token = localStorage.getItem("token");
+
+    socket.emit("join-document", { documentId, token });
+
+    const applyRemote = (update) =>
+      Y.applyUpdate(ydoc, Uint8Array.from(update), "socket");
+
+    socket.on("document-state", applyRemote);
+    socket.on("sync-update", applyRemote);
+
+    socket.on("awareness-update", (update) =>
+      awarenessProtocol.applyAwarenessUpdate(
+        awareness,
+        Uint8Array.from(update),
+        "socket"
+      )
+    );
+
+    ydoc.on("update", (u, origin) => {
+      if (origin !== "socket")
+        socket.emit("sync-update", Array.from(u));
     });
 
-    return () => awareness.setLocalState(null);
-  }, [awareness, localUser]);
-
-  // 4️⃣ Conectar Yjs ↔ Socket
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket || !documentId) return;
-
-    console.log("📡 Joining document:", documentId);
-
-    // Unirse a sala
-    socket.emit("join-document", { documentId });
-
-    // Estado inicial
-    const handleDocumentState = (updateArray) => {
-      try {
-        Y.applyUpdate(ydoc, Uint8Array.from(updateArray), "socket");
-      } catch (err) {
-        console.error("Error aplicando snapshot:", err);
-      }
-    };
-
-    // Actualizaciones remotas
-    const handleSyncUpdate = (updateArray) => {
-      try {
-        Y.applyUpdate(ydoc, Uint8Array.from(updateArray), "socket");
-      } catch (err) {
-        console.error("Error aplicando update remoto:", err);
-      }
-    };
-
-    // Awareness remoto
-    const handleAwarenessUpdate = (updateArray) => {
-      try {
-        awarenessProtocol.applyAwarenessUpdate(
-          awareness,
-          Uint8Array.from(updateArray),
-          "socket"
-        );
-      } catch (err) {
-        console.error("Error awareness remoto:", err);
-      }
-    };
-
-    socket.on("document-state", handleDocumentState);
-    socket.on("sync-update", handleSyncUpdate);
-    socket.on("awareness-update", handleAwarenessUpdate);
-
-    // Actualizaciones locales Yjs → socket
-    const handleLocalYUpdate = (update, origin) => {
-      if (origin === "socket") return;
-      socket.emit("sync-update", Array.from(update));
-    };
-
-    ydoc.on("update", handleLocalYUpdate);
-
-    // Awareness local → socket
-    const handleLocalAwareness = ({ added, updated, removed }, origin) => {
+    awareness.on("update", ({ added, updated, removed }, origin) => {
       if (origin === "socket") return;
       const clients = [...added, ...updated, ...removed];
-      const update = awarenessProtocol.encodeAwarenessUpdate(awareness, clients);
-      socket.emit("awareness-update", Array.from(update));
-    };
+      const packet = awarenessProtocol.encodeAwarenessUpdate(awareness, clients);
+      socket.emit("awareness-update", Array.from(packet));
+    });
+  }, [editor]);
 
-    awareness.on("update", handleLocalAwareness);
-
-    return () => {
-      socket.off("document-state", handleDocumentState);
-      socket.off("sync-update", handleSyncUpdate);
-      socket.off("awareness-update", handleAwarenessUpdate);
-      ydoc.off("update", handleLocalYUpdate);
-      awareness.off("update", handleLocalAwareness);
-    };
-  }, [documentId, ydoc, awareness]);
-
-  // 5️⃣ Guardar documento
+  // Guardar documento
   const saveDocument = async () => {
-    try {
-      const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
-      // Guardar título
-      await fetch(`${SOCKET_URL}/api/documents/${documentId}`, {
-        method: "PUT",
+    await fetch(`${SOCKET_URL}/api/documents/${documentId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ title }),
+    });
+
+    socketRef.current.emit("save-document");
+    alert("Documento guardado");
+  };
+
+  // ➕ Invitar
+  const inviteCollaborator = async () => {
+    if (!inviteEmail) return;
+
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `${SOCKET_URL}/api/documents/${documentId}/collaborators`,
+      {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title }),
-      });
+        body: JSON.stringify({ email: inviteEmail }),
+      }
+    );
 
-      // Snapshot Yjs en servidor
-      socketRef.current.emit("save-document");
+    const data = await res.json();
+    if (!res.ok) return alert(data.message);
 
-      alert("Documento guardado");
-    } catch (err) {
-      console.error("Error guardando:", err);
-    }
+    setDocData(data);
+    setInviteEmail("");
   };
 
-  if (!editor) return <div className="p-8">Cargando editor...</div>;
+  // Exportaciones
+  const exportAsText = () => {
+    const blob = new Blob([editor.getText()], { type: "text/plain" });
+    const link = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = link;
+    a.download = `${title}.txt`;
+    a.click();
+  };
 
-  return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <input
-        className="border p-2 rounded w-full mb-4 text-xl font-semibold"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Título del documento"
-      />
+  const exportAsHTML = () => {
+    const blob = new Blob([editor.getHTML()], { type: "text/html" });
+    const link = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = link;
+    a.download = `${title}.html`;
+    a.click();
+  };
 
+  const exportAsPDF = async () => {
+    const el = document.querySelector(".tiptap");
+    const canvas = await html2canvas(el);
+    const img = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF();
+    pdf.addImage(img, "PNG", 0, 0, 210, 0);
+    pdf.save(`${title}.pdf`);
+  };
+
+  // 🌟 Toolbar (Tailwind)
+  const Toolbar = () => (
+    <div className="flex flex-wrap gap-2 p-2 bg-gray-100 border rounded">
+
+      {/* Bold / Italic / Underline */}
       <button
-        className="bg-blue-600 text-white px-4 py-2 rounded mb-4"
-        onClick={saveDocument}
+        className="px-2 py-1 border rounded hover:bg-gray-200 font-bold"
+        onClick={() => editor.chain().focus().toggleBold().run()}
       >
-        Guardar
+        B
       </button>
 
+      <button
+        className="px-2 py-1 border rounded hover:bg-gray-200 italic font-bold"
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+      >
+        I
+      </button>
+
+      <button
+        className="px-2 py-1 border rounded hover:bg-gray-200 underline font-bold"
+        onClick={() => editor.chain().focus().toggleUnderline().run()}
+      >
+        U
+      </button>
+
+      {/* Color */}
+      <input
+        type="color"
+        className="w-10 h-10 border rounded"
+        onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+      />
+
+      {/* Tamaño */}
+      <select
+        className="border rounded px-2 py-1"
+        onChange={(e) =>
+          editor.chain().focus().setFontSize(e.target.value).run()
+        }
+      >
+        {[12, 14, 16, 20, 24, 30, 36].map((s) => (
+          <option key={s} value={`${s}px`}>
+            {s}
+          </option>
+        ))}
+      </select>
+
+      {/* Fuente */}
+      <select
+        className="border rounded px-2 py-1"
+        onChange={(e) =>
+          editor.chain().focus().setFontFamily(e.target.value).run()
+        }
+      >
+        <option value="Arial">Arial</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Courier New">Courier New</option>
+      </select>
+
+      {/* Alineación */}
+      <button
+        className="px-2 py-1 border rounded hover:bg-gray-200"
+        onClick={() => editor.chain().focus().setTextAlign("left").run()}
+      >
+        ⬅️
+      </button>
+
+      <button
+        className="px-2 py-1 border rounded hover:bg-gray-200"
+        onClick={() => editor.chain().focus().setTextAlign("center").run()}
+      >
+        ☰
+      </button>
+
+      <button
+        className="px-2 py-1 border rounded hover:bg-gray-200"
+        onClick={() => editor.chain().focus().setTextAlign("right").run()}
+      >
+        ➡️
+      </button>
+
+      <button
+        className="px-2 py-1 border rounded hover:bg-gray-200"
+        onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+      >
+        📐
+      </button>
+    </div>
+  );
+
+  if (!editor) return <p className="p-8">Cargando editor...</p>;
+
+  if (joinError)
+    return (
+      <div className="p-8 text-center text-red-600">
+        <h2 className="text-xl font-bold">No puedes abrir este documento</h2>
+        <p>{joinError}</p>
+      </div>
+    );
+
+  return (
+    <div className="p-8 max-w-5xl mx-auto space-y-4">
+
+      {/* Título */}
+      <input
+        className="border p-2 rounded w-full text-xl font-semibold"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
+
+      {/* Toolbar */}
+      <Toolbar />
+
+      {/* Acciones */}
+      <div className="flex flex-wrap gap-2">
+
+        <button
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          onClick={saveDocument}
+        >
+          Guardar
+        </button>
+
+        <button className="px-3 py-2 bg-gray-700 text-white rounded" onClick={exportAsText}>
+          TXT
+        </button>
+
+        <button className="px-3 py-2 bg-purple-700 text-white rounded" onClick={exportAsHTML}>
+          HTML
+        </button>
+
+        <button className="px-3 py-2 bg-red-700 text-white rounded" onClick={exportAsPDF}>
+          PDF
+        </button>
+
+        {/* Invitación */}
+        <input
+          type="email"
+          className="border p-2 rounded"
+          placeholder="Email colaborador"
+          value={inviteEmail}
+          onChange={(e) => setInviteEmail(e.target.value)}
+        />
+
+        <button
+          className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          onClick={inviteCollaborator}
+        >
+          Invitar
+        </button>
+
+        {/* Eliminar */}
+        <button
+          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          onClick={async () => {
+            if (!window.confirm("¿Eliminar documento?")) return;
+            await deleteDocument(documentId);
+            window.location.href = "/dashboard";
+          }}
+        >
+          Eliminar
+        </button>
+      </div>
+
+      {/* Info */}
+      {docData && (
+        <div className="p-3 bg-gray-50 border rounded">
+          <p><b>Propietario:</b> {docData.owner?.name}</p>
+          <p><b>Colaboradores:</b></p>
+          <ul className="list-disc ml-5">
+            {docData.collaborators.map((c) => (
+              <li key={c._id}>
+                {c.name} ({c.email})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Editor */}
       <EditorContent
         editor={editor}
-        className="border p-4 bg-white rounded min-h-[400px]"
+        className="tiptap border p-4 bg-white rounded min-h-[500px]"
       />
     </div>
   );

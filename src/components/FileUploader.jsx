@@ -5,6 +5,8 @@ const FileUploader = ({ taskId, onUploaded }) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
 
+  const normalizeTask = (data) => (data?.task ? data.task : data);
+
   const handleClick = () => {
     inputRef.current?.click();
   };
@@ -18,11 +20,12 @@ const FileUploader = ({ taskId, onUploaded }) => {
 
     try {
       setUploading(true);
+
       const res = await API.post(`/tasks/${taskId}/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      if (onUploaded) onUploaded(res.data); // tarea actualizada
+      if (onUploaded) onUploaded(normalizeTask(res.data));
     } catch (err) {
       console.error("Error subiendo archivo:", err);
       alert("No se pudo subir el archivo");
@@ -42,6 +45,7 @@ const FileUploader = ({ taskId, onUploaded }) => {
       >
         {uploading ? "Subiendo..." : "Adjuntar archivo"}
       </button>
+
       <input
         type="file"
         ref={inputRef}

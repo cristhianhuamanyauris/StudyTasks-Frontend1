@@ -1,28 +1,27 @@
+// src/pages/Dashboard.jsx
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import API from "../services/api";
+import API, {
+  addSubtask,
+  toggleSubtask,
+  deleteSubtask,
+} from "../services/api";
 import TaskForm from "../components/TaskForm";
 import TaskList from "../components/TaskList";
 import ProgressBar from "../components/ProgressBar";
-import { createDocument as apiCreateDocument } from "../utils/documentApi";
+import EditTaskModal from "../components/EditTaskModal";
 
 const Dashboard = ({ onLogout }) => {
-  // -------- TAREAS --------
+  // -------- ESTADOS --------
   const [tasks, setTasks] = useState([]);
   const [search, setSearch] = useState("");
   const [filterPriority, setFilterPriority] = useState("Todas");
+  const [taskBeingEdited, setTaskBeingEdited] = useState(null);
 
-  // -------- DOCUMENTOS --------
-  const [documents, setDocuments] = useState([]);
-  const navigate = useNavigate();
-
-  // Cargar tareas + documentos al inicio
+  // Cargar tareas al inicio
   useEffect(() => {
     fetchTasks();
-    fetchDocuments();
   }, []);
 
-  // ----------- TAREAS -----------
   const fetchTasks = async () => {
     try {
       const res = await API.get("/tasks");
@@ -32,6 +31,11 @@ const Dashboard = ({ onLogout }) => {
     }
   };
 
+  // ⭐ Normalizar respuestas
+  const normalizeTask = (data) => (data?.task ? data.task : data);
+
+  // -------- CRUD de TAREAS --------
+
   const handleAddTask = (newTask) => {
     setTasks((prev) => [newTask, ...prev]);
   };
@@ -39,7 +43,7 @@ const Dashboard = ({ onLogout }) => {
   const handleToggle = async (id, completed) => {
     try {
       const res = await API.put(`/tasks/${id}`, { completed });
-      setTasks((prev) => prev.map((t) => (t._id === id ? res.data : t)));
+      handleTaskUpdated(normalizeTask(res.data));
     } catch (err) {
       console.error("Error al actualizar tarea", err);
     }
@@ -54,18 +58,27 @@ const Dashboard = ({ onLogout }) => {
     }
   };
 
-  // 👉 NUEVO: cuando una tarea se actualiza (adjunto, global, etc.)
   const handleTaskUpdated = (updatedTask) => {
     setTasks((prev) =>
-      prev.map((t) => (t._id === updatedTask._id ? updatedTask : t))
+      prev.map((task) =>
+        task._id === updatedTask._id
+          ? {
+              ...updatedTask,
+              attachments: [...(updatedTask.attachments || [])],
+              subtasks: updatedTask.subtasks.map((sub) => ({
+                ...sub,
+                attachments: [...(sub.attachments || [])],
+              })),
+            }
+          : task
+      )
     );
   };
 
-  // 👉 NUEVO: marcar tarea como global
   const handleMakeGlobal = async (id) => {
     try {
       const res = await API.put(`/tasks/${id}/make-global`);
-      handleTaskUpdated(res.data);
+      handleTaskUpdated(normalizeTask(res.data));
       alert("Tarea publicada en tareas globales");
     } catch (err) {
       console.error("Error al publicar tarea global", err);
@@ -73,39 +86,75 @@ const Dashboard = ({ onLogout }) => {
     }
   };
 
+  // -------- EDITAR TAREA --------
+  const handleEditTask = (task) => {
+    setTaskBeingEdited(task);
+  };
+
+  const handleSaveTask = async (updatedTask) => {
+    try {
+      const res = await API.put(`/tasks/${updatedTask._id}`, {
+        title: updatedTask.title,
+        priority: updatedTask.priority,
+      });
+
+      handleTaskUpdated(normalizeTask(res.data));
+      setTaskBeingEdited(null);
+    } catch (err) {
+      console.error("Error actualizando tarea", err);
+    }
+  };
+
+  // -------- SUBTAREAS --------
+
+  const handleAddSub = async (taskId, text) => {
+    try {
+      const res = await addSubtask(taskId, text);
+      handleTaskUpdated(normalizeTask(res.data));
+    } catch (err) {
+      console.error("Error agregando subtarea:", err);
+    }
+  };
+
+  const handleToggleSub = async (taskId, subId, done) => {
+    try {
+      const res = await toggleSubtask(taskId, subId, done);
+      handleTaskUpdated(normalizeTask(res.data));
+    } catch (err) {
+      console.error("Error actualizando subtarea:", err);
+    }
+  };
+
+  const handleDeleteSub = async (taskId, subId) => {
+    if (!window.confirm("¿Eliminar esta subtarea?")) return;
+
+    try {
+      const res = await deleteSubtask(taskId, subId);
+      handleTaskUpdated(normalizeTask(res.data));
+    } catch (err) {
+      console.error("Error eliminando subtarea:", err);
+    }
+  };
+
+  // -------- FILTROS --------
+
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.title
       .toLowerCase()
       .includes(search.toLowerCase());
+
     const matchesPriority =
       filterPriority === "Todas" || task.priority === filterPriority;
+
     return matchesSearch && matchesPriority;
   });
 
-  // ----------- DOCUMENTOS (colaborativos) -----------
-  const fetchDocuments = async () => {
-    try {
-      const res = await API.get("/documents");
-      setDocuments(res.data);
-    } catch (err) {
-      console.error("Error al cargar documentos", err);
-    }
-  };
-
-  const createDocument = async () => {
-    try {
-      const newDocId = await apiCreateDocument("Nuevo documento");
-      navigate(`/documents/${newDocId}`);
-      fetchDocuments();
-    } catch (err) {
-      console.error("Error al crear documento", err);
-      alert("No se pudo crear el documento");
-    }
-  };
+  // -------- UI --------
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+        
         {/* ---------- CABECERA ---------- */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Mis tareas</h1>
@@ -137,7 +186,7 @@ const Dashboard = ({ onLogout }) => {
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 w-full sm:w-1/4"
+            className="border border-gray-300 rounded px-3 py-2 w-full sm:w-1/4"
           >
             <option value="Todas">Todas</option>
             <option value="Alta">Alta</option>
@@ -151,48 +200,24 @@ const Dashboard = ({ onLogout }) => {
           tasks={filteredTasks}
           onToggle={handleToggle}
           onDelete={handleDelete}
-          onTaskUpdated={handleTaskUpdated}   // 👈 nuevo
-          onMakeGlobal={handleMakeGlobal}     // 👈 nuevo
+          onTaskUpdated={handleTaskUpdated}
+          onMakeGlobal={handleMakeGlobal}
+          onEdit={handleEditTask}
+          onAddSub={handleAddSub}
+          onToggleSub={handleToggleSub}
+          onDeleteSub={handleDeleteSub}
+          normalizeTask={normalizeTask}
         />
-
-        {/* --------- DOCUMENTOS COLABORATIVOS (lo que ya tenías) --------- */}
-        <div className="mt-10">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-800">Mis documentos</h2>
-
-            <button
-              onClick={createDocument}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition"
-            >
-              + Crear documento
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {documents.map((doc) => (
-              <div
-                key={doc._id}
-                className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 cursor-pointer transition shadow-sm"
-                onClick={() => navigate(`/documents/${doc._id}`)}
-              >
-                <h3 className="font-semibold text-lg text-gray-800 mb-2">
-                  {doc.title}
-                </h3>
-
-                <p className="text-xs text-gray-500 mb-3">
-                  Última edición: {new Date(doc.updatedAt).toLocaleString()}
-                </p>
-
-                <p className="text-sm text-gray-600 line-clamp-2">
-                  {doc.hasContent
-                    ? "Contenido colaborativo guardado"
-                    : "Documento vacío"}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
+
+      {/* MODAL DE EDICIÓN */}
+      {taskBeingEdited && (
+        <EditTaskModal
+          task={taskBeingEdited}
+          onClose={() => setTaskBeingEdited(null)}
+          onSave={handleSaveTask}
+        />
+      )}
     </div>
   );
 };
